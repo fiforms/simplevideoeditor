@@ -3,7 +3,11 @@
 #include <Array.au3>
 #include <File.au3>
 
-$ffmpegBinary = "C:\Program Files (x86)\ffmpeg\ffmpeg.exe"
+If(Not FileExists(@AppDataDir & "\SimpleVideoEditor")) Then
+    DirCreate(@AppDataDir & "\SimpleVideoEditor")
+EndIf
+$iniFile = @AppDataDir & "\SimpleVideoEditor\SimpleVideoEditor.ini"
+$ffmpegBinary = iniRead($iniFile,"general","ffmpeg","C:\Program Files (x86)\ffmpeg\ffmpeg.exe")
 
 Local $hGUI = GUICreate("Simple Video Editor", 600, 500)
 $hTab = GUICtrlCreateTab(10, 10, 580, 480)
@@ -50,11 +54,20 @@ Local $iMSaveName = GUICtrlCreateInput("",20,200,300)
 Local $iMSaveVideo = GUICtrlCreateButton("Pick Output Name",330,200,100)
 Local $iMultiplexAV = GUICtrlCreateButton("Multiplex Audio & Video",20,240,300)
 
+GUICtrlCreateTabItem("Settings")
+GUICtrlCreateLabel("This program requires FFMPEG to do the 'real' work.",20,40)
+GUICtrlCreateLabel("Please install FFMPEG and specify the location of ffmpeg.exe",20,60)
+Local $iFFMPEGInput = GUICtrlCreateInput($ffmpegBinary,80,90,400)
+Local $iFFMPEGDownload = GUICtrlCreateButton("Download",120,120,100)
+Local $iFFMPEGChoose = GUICtrlCreateButton("Find Location",240,120,100)
+Local $iFFMPEGSave = GUICtrlCreateButton("Save Setting",360,120,100)
 
 GUICtrlCreateTabItem("")
 
 GUICtrlSetState($iPreviewOutput, $GUI_DISABLE)
 GUISetState(@SW_SHOW, $hGUI)
+
+WarnFFMPEG()
 
 Local $iMsg = 0
 While 1
@@ -105,6 +118,16 @@ While 1
 			GuiCtrlSetData($iMSaveName,$fName)
 		Case $iMultiplexAV
 			MultiplexAV()
+		Case $iFFMPEGDownload
+			ShellExecute("https://github.com/BtbN/FFmpeg-Builds/releases")
+		Case $iFFMPEGChoose
+			Local $fName = FileOpenDialog("Locate FFMPEG",@ScriptDir,"FFMPEG (ffmpeg.exe)")
+			GuiCtrlSetData($iFFMPEGInput,$fName)
+			$ffmpegBinary = $fName
+			iniWrite($iniFile,"general","ffmpeg",$ffmpegBinary)
+		Case $iFFMPEGSave
+			$ffmpegBinary = GUICtrlRead($iFFMPEGInput)
+			iniWrite($iniFile,"general","ffmpeg",$ffmpegBinary)
         Case $GUI_EVENT_CLOSE
             ExitLoop
 
@@ -113,7 +136,14 @@ WEnd
 
 GUIDelete($hGUI)
 
+Func WarnFFMPEG()
+	If(Not FileExists($ffmpegBinary)) Then
+		MsgBox(0,"Please Download FFMPEG","In order to use this program, you must install FFMPEG. Go to the settings tab to download and point this program to the correct location for ffmpeg.exe")
+	EndIf
+EndFunc
+
 Func CutVideo()
+	WarnFFMPEG()
 	Local $tStart = GUICtrlRead($iStartTime)
 	Local $duration = GUICtrlRead($iDuration)
 	Local $inputFile = GUICtrlRead($iFileName)
@@ -142,6 +172,7 @@ Func CutVideo()
 EndFunc
 
 Func CombineVideo($withSound)
+	WarnFFMPEG()
 	Local $directory = GUICtrlRead($iDirectory)
 	Local $outputFile = GUICtrlRead($iCombinedVideo)
 	Local $codec = ''
@@ -178,6 +209,7 @@ Func CombineAudio()
 EndFunc
 
 Func FFMPEG_Combine($directory,$outputFile,$codec)
+	WarnFFMPEG()
 	Local $aFiles = _FileListToArray($directory,"*.mp4",$FLTA_FILES)
 	If(Not IsArray($aFiles)) Then
 		MsgBox(0,"Error","Something went wrong, I can't find any .mp4 files")
@@ -187,6 +219,7 @@ Func FFMPEG_Combine($directory,$outputFile,$codec)
 	_ArrayDelete($aFiles,0)
 	_ArraySort($aFiles)
 	;_ArrayDisplay($aFiles)
+	$sList = ''
 	For $i = 0 To ($iCount - 1)
 		$sList = $sList & 'file ' & $aFiles[$i] & @CRLF
 	Next
@@ -200,6 +233,7 @@ Func FFMPEG_Combine($directory,$outputFile,$codec)
 EndFunc
 
 Func MultiplexAV()
+	WarnFFMPEG()
 	Local $videoFile = GUICtrlRead($iMFileName)
 	Local $audioFile = GUICtrlRead($iMAFileName)
 	Local $outputFile = GUICtrlRead($iMSaveName)
