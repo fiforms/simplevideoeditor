@@ -8,4 +8,4 @@ A Simple Front-end to FFMPEG to cut and concatenate videos. This is a very simpl
 
 
 # Using SimpleVideoEditor
-You must first install ffmpeg. This script expects ffmpeg.exe to reside in "C:\Program Files (x86)\ffmpeg\ffmpeg.exe". Future versions will allow customization of this path. You can download ffmpeg here: https://ffmpeg.org/download.html
+You must first install ffmpeg. By default, this script expects ffmpeg.exe to reside in "C:\Program Files (x86)\ffmpeg\ffmpeg.exe", but you can specify the location in the settings tab. You can download ffmpeg here: https://ffmpeg.org/download.html
