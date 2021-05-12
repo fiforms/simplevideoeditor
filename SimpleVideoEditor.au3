@@ -183,10 +183,11 @@ Func FFMPEG_Combine($directory,$outputFile,$codec)
 		MsgBox(0,"Error","Something went wrong, I can't find any .mp4 files")
 		Return 1
 	EndIf
-	;_ArrayDisplay($aFiles)
 	Local $iCount = $aFiles[0]
-	$sList = ""
-	For $i = 1 To $iCount
+	_ArrayDelete($aFiles,0)
+	_ArraySort($aFiles)
+	;_ArrayDisplay($aFiles)
+	For $i = 0 To ($iCount - 1)
 		$sList = $sList & 'file ' & $aFiles[$i] & @CRLF
 	Next
 	$fname =  "list_" & RandomLetters(8) & ".tmp"
