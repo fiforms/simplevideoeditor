@@ -38,6 +38,7 @@ Local $iChooseCombinedAudio = GUICtrlCreateButton("Choose Output Audio File",330
 Local $iCombineVideo = GUICtrlCreateButton("Concat Video with Sound",20,190,180)
 Local $iCombineVideoNoSound = GUICtrlCreateButton("Concat Video without Sound",210,190,180)
 Local $iCombineAudio = GUICtrlCreateButton("Concat Audio",400,190,180)
+Local $iUseMTS = GUICtrlCreateCheckbox("Use Intermediate MTS files for Silent Video",20,270)
 GUICtrlCreateLabel("NOTE: All video files must be exactly the same dimensions and codec.",20,230)
 GUICtrlCreateLabel("(i.e.) produced by the same digital camera or software with identical settings",40,250)
 
@@ -102,9 +103,13 @@ While 1
 			Local $fName = FileSaveDialog("Choose Output Combined Audio",@ScriptDir,"MP4 Audio Files (*.m4a)")
 			GuiCtrlSetData($iCombinedAudio,$fName)
 		Case $iCombineVideo
-			CombineVideo(true)
+			CombineVideo(true,false)
 		Case $iCombineVideoNoSound
-			CombineVideo(false)
+			$useMTS = false
+			If(GUICtrlRead($iUseMTS) == 1) Then
+			    $useMTS = true
+			EndIf
+			CombineVideo(false,$useMTS)
 		Case $iCombineAudio
 			CombineAudio()
 		Case $iMChooseVideo
@@ -171,32 +176,35 @@ Func CutVideo()
 	EndIf
 EndFunc
 
-Func CombineVideo($withSound)
+Func CombineVideo($withSound,$useMTS)
 	WarnFFMPEG()
 	Local $directory = GUICtrlRead($iDirectory)
 	Local $outputFile = GUICtrlRead($iCombinedVideo)
 	Local $codec = ''
 	if($withSound) Then
 	    $codec = '-c:a copy -c:v copy'
-        FFMPEG_Combine($directory,$outputFile,$codec)
+        FFMPEG_Combine($directory,$outputFile,$codec,'*.mp4')
     Else
-		$codec = '-c:v copy -an'
-		FFMPEG_Combine($directory,$outputFile,$codec)
-		; Bad Code
-	    ;$sTempDir = $directory & '\' & RandomLetters(10) & '.tmp'
-		;DirCreate($sTempDir)
-		;$aFiles = _FileListToArray($directory,"*.mp4",$FLTA_FILES)
-		;Local $iCount = $aFiles[0]
-		;For $i = 1 To $iCount
-		;	Local $cmd = '"' & $ffmpegBinary & '" -i "' & $directory & '\' & $aFiles[$i] & '" -c:v copy -an "' & $sTempDir & '\' & $aFiles[$i] & '"'
-		;	RunWait($cmd,$directory)
-		;Next
+		if($useMTS) Then
+			$sTempDir = $directory & '\' & RandomLetters(10) & '.tmp'
+			DirCreate($sTempDir)
+			$aFiles = _FileListToArray($directory,"*.mp4",$FLTA_FILES)
+			Local $iCount = $aFiles[0]
+			For $i = 1 To $iCount
+				Local $cmd = '"' & $ffmpegBinary & '" -i "' & $directory & '\' & $aFiles[$i] & '" -c:v copy -an "' & $sTempDir & '\' & $aFiles[$i] & '.mts"'
+				RunWait($cmd,$directory)
+			Next
+			$codec = '-c:v copy -an'
+			FFMPEG_Combine($sTempDir,$outputFile,$codec,"*.mts")
+			For $i = 1 To $iCount
+				;FileDelete($sTempDir & '\' & $aFiles[$i] & '.mts')
+			Next
+			;DirRemove($sTempDir)
+		Else
+			$codec = '-c:v copy -an'
+			FFMPEG_Combine($directory,$outputFile,$codec,'*.mp4')
+		EndIf
 
-        ;FFMPEG_Combine($sTempDir,$outputFile,$codec)
-		;For $i = 1 To $iCount
-		;	FileDelete($sTempDir & '\' & $aFiles[$i])
-		;Next
-		;DirRemove($sTempDir)
 	EndIf
 
 EndFunc
@@ -205,14 +213,14 @@ Func CombineAudio()
 	Local $directory = GUICtrlRead($iDirectory)
 	Local $outputFile = GUICtrlRead($iCombinedAudio)
 	Local $codec = '-c:a copy -vn'
-	FFMPEG_Combine($directory,$outputFile,$codec)
+	FFMPEG_Combine($directory,$outputFile,$codec,'*.mp4')
 EndFunc
 
-Func FFMPEG_Combine($directory,$outputFile,$codec)
+Func FFMPEG_Combine($directory,$outputFile,$codec,$extension)
 	WarnFFMPEG()
-	Local $aFiles = _FileListToArray($directory,"*.mp4",$FLTA_FILES)
+	Local $aFiles = _FileListToArray($directory,$extension,$FLTA_FILES)
 	If(Not IsArray($aFiles)) Then
-		MsgBox(0,"Error","Something went wrong, I can't find any .mp4 files")
+		MsgBox(0,"Error","Something went wrong, I can't find any " & $extension & " files in " & $directory)
 		Return 1
 	EndIf
 	Local $iCount = $aFiles[0]
